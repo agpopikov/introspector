@@ -1,0 +1,64 @@
+buildscript {
+
+    ext {
+        kotlinVersion = "1.3.21"
+        hikariCPVersion = "3.3.1"
+        slf4jVersion = "1.7.25"
+        junitVersion = "4.12"
+        testContainersVersion = "1.10.6"
+        ktlintPluginVersion = "7.0.0"
+    }
+
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven { url = "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        classpath("org.jlleitschuh.gradle:ktlint-gradle:$ktlintPluginVersion")
+    }
+}
+
+apply plugin: "kotlin"
+apply plugin: "org.jlleitschuh.gradle.ktlint"
+
+group = "org.agp.is"
+
+sourceCompatibility = 1.8
+
+compileKotlin {
+    kotlinOptions {
+        freeCompilerArgs = ["-Xjsr305=strict"]
+        jvmTarget = "1.8"
+    }
+}
+
+compileTestKotlin {
+    kotlinOptions {
+        freeCompilerArgs = ["-Xjsr305=strict"]
+        jvmTarget = "1.8"
+    }
+}
+
+repositories {
+    mavenCentral()
+    jcenter()
+}
+
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("com.zaxxer:HikariCP:${hikariCPVersion}")
+    implementation("org.slf4j:slf4j-api:${slf4jVersion}")
+    testImplementation("junit:junit:${junitVersion}")
+    testImplementation("org.testcontainers:testcontainers:${testContainersVersion}")
+    testImplementation("org.testcontainers:postgresql:${testContainersVersion}")
+}
+
+ktlint {
+    version = "0.30.0"
+    outputToConsole = true
+    // TODO: Fix it in future (reformat code & disable failure ignore flag).
+    ignoreFailures = true
+}
