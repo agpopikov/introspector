@@ -10,31 +10,43 @@ class InformationSchemaProvider(private val type: DatabaseType, dataSource: Data
 
     override fun tables(schema: String, filter: String?): List<Table> {
         // get tables
-        val tablesQuery = """
+        val tables = getTables(schema)
+        TODO()
+    }
+
+    private fun getTables(schema: String): List<Table> {
+        val query = """
             SELECT table_name, table_type
             FROM information_schema.tables
             WHERE table_schema like :schema
         """
-        val tables = db.queryMany(tablesQuery, mapOf("schema" to schema)) {
-            val name = it.getString("table_name")
+        return db.queryMany(query, mapOf("schema" to schema)) {
+            val table = it.getString("table_name")
             val isView = it.getString("table_type") != "BASE TABLE"
-            Table(schema, name, isView = isView)
+            val constraints = mutableListOf<Constraint>()
+            constraints.addAll(getUniqueConstraints(schema, table))
+            constraints.addAll(getForeignKeyConstraints(schema, table))
+            Table(schema, table, isView = isView, columns = getColumns(schema, table))
         }
-        // get columns for table
-        val columnsQuery = """
+    }
+
+    private fun getColumns(schema: String, table: String): List<Column> {
+        val query = """
             SELECT column_name, is_nullable, data_type
             FROM information_schema.columns
             WHERE table_schema LIKE :schema AND table_name LIKE :table
             ORDER BY ordinal_position;
         """
-        val columns = db.queryMany(columnsQuery, mapOf("schema" to schema, "table" to tables.first().name)) {
+        return db.queryMany(query, mapOf("schema" to schema, "table" to table)) {
             val name = it.getString("column_name")
             val raw = it.getString("data_type")
             val nullable = it.getBoolean("is_nullable")
             Column(name, Type(BasicType.getFromRaw(type, raw), raw), nullable)
         }
-        // get referential constraints for table
-        val referentialConstraintsQuery = """
+    }
+
+    private fun getForeignKeyConstraints(schema: String, table: String): List<ForeignKey> {
+        val query = """
             SELECT
               s.constraint_name AS name,
               s.column_name AS source_column,
@@ -52,22 +64,42 @@ class InformationSchemaProvider(private val type: DatabaseType, dataSource: Data
               AND t.ordinal_position = s.ordinal_position
             WHERE s.table_schema LIKE :schema AND s.table_name LIKE :table
         """
-        val fks = mutableMapOf<String, ForeignKey>()
-        db.queryMany(referentialConstraintsQuery, mapOf("schema" to schema, "table" to tables.first().name)) {
+        val items = mutableMapOf<String, ForeignKey>()
+        db.queryMany(query, mapOf("schema" to schema, "table" to table)) {
             val name = it.getString("name")
             val sourceColumn = it.getString("source_column")
             val targetTable = it.getString("target_table")
             val targetColumn = it.getString("target_column")
-            val existing = fks[name]
+            val existing = items[name]
             if (existing != null) {
-                fks[name] = existing.copy(columns = existing.columns.concat(sourceColumn), targetColumns = existing.targetColumns.concat(targetColumn))
+                items[name] = existing.copy(columns = existing.columns.concat(sourceColumn), targetColumns = existing.targetColumns.concat(targetColumn))
             } else {
-                fks[name] = ForeignKey(name, listOf(sourceColumn), targetTable, listOf(targetColumn))
+                items[name] = ForeignKey(name, listOf(sourceColumn), targetTable, listOf(targetColumn))
             }
-            Unit
         }
-        //
-        TODO()
+        return items.values.toList()
+    }
+
+    private fun getUniqueConstraints(schema: String, table: String): List<Unique> {
+        val query = """
+            SELECT tc.constraint_name as name, ccu.column_name as column
+            FROM information_schema.table_constraints tc
+                   JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+            WHERE tc.constraint_type = 'UNIQUE' AND tc.table_schema LIKE :schema AND tc.table_name LIKE :table
+
+        """
+        val items = mutableMapOf<String, Unique>()
+        db.queryMany(query, mapOf("schema" to schema, "table" to table)) {
+            val name = it.getString("name")
+            val column = it.getString("column")
+            val existing = items[name]
+            if (existing != null) {
+                items[name] = existing.copy(columns = existing.columns.concat(column))
+            } else {
+                items[name] = Unique(name, listOf(column))
+            }
+        }
+        return items.values.toList()
     }
 
     private fun <T> List<T>.concat(item: T): List<T> {

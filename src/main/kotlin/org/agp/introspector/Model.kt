@@ -19,7 +19,7 @@ enum class ConstraintType {
 
 open class Constraint(val type: ConstraintType)
 
-data class Unique(val name: String, val columns: List<Column>) : Constraint(ConstraintType.UNIQUE)
+data class Unique(val name: String, val columns: List<String>) : Constraint(ConstraintType.UNIQUE)
 data class ForeignKey(val name: String,
                       val columns: List<String>,
                       val targetTable: String,
