@@ -1,21 +1,24 @@
 package org.agp.utils
 
+import org.agp.introspector.ForeignKey
 import org.agp.introspector.Table
 import java.io.File
 
-class Visualizer {
+object Visualizer {
 
     fun renderDotFile(tables: List<Table>, file: String) {
-        var result = """
+        val tablesDefs = tables.joinToString("\n") { t -> renderTableMarkup(t) }
+        val linksDefs = tables.joinToString("\n") { t -> renderLinks(t) }
+        val result = """
             digraph {
                 graph [pad="0.5", nodesep="0.5", ranksep="2"];
                 node [shape=plain]
                 rankdir=LR;
 
+            $tablesDefs
+            $linksDefs
+            }
         """.trimIndent()
-        tables.forEach { t -> result += renderTableMarkup(t) }
-        tables.forEach { t -> renderLinks(t)}
-        result += "}"
         File(file).writeText(result)
     }
 
@@ -24,13 +27,21 @@ class Visualizer {
         items.add("""<tr><td><i>${table.name}</i></td></tr>""")
         table.columns.forEach {
             val value = if (!it.nullable) "<b>${it.name}</b>" else it.name
-            items.add("""<tr><td port="col-${it.name}">$value</td></tr>""")
+            items.add("""<tr><td port="${it.name}">$value</td></tr>""")
         }
         items.add("""</table>""")
-        return items.joinToString("\n")
+        return """${table.name} [label=<${items.joinToString("\n")}>];"""
     }
 
-    private fun renderLinks(table: Table) {
-        // TODO
+    private fun renderLinks(table: Table): String {
+        val items = mutableListOf<String>()
+        table.constraints.forEach {
+            if (it is ForeignKey) {
+                val source = it.columns.first()
+                val target = it.targetColumns.first()
+                items.add("""${table.name}:$source -> ${it.targetTable}:$target [label="${it.name}"];""")
+            }
+        }
+        return items.joinToString("\n")
     }
 }

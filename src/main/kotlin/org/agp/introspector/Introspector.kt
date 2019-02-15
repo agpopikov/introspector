@@ -8,8 +8,11 @@ class Introspector(type: DatabaseType, dataSource: DataSource) {
 
     private val provider: Provider = initialize(type, dataSource)
 
+    fun tables(schema: String) = provider.tables(schema)
+
     private fun initialize(type: DatabaseType, dataSource: DataSource): Provider {
-        return if (type.supportInformationSchema) {
+        val informationSchemaDBs = setOf(DatabaseType.PostgreSQL, DatabaseType.MySQL, DatabaseType.MSSQL)
+        return if (informationSchemaDBs.contains(type)) {
             InformationSchemaProvider(type, dataSource)
         } else {
             throw NotImplementedError("Supports only information schema-based databases.")

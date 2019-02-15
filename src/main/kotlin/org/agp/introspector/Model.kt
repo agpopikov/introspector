@@ -1,7 +1,7 @@
 package org.agp.introspector
 
-data class Table(val name: String,
-                 val schema: String,
+data class Table(val schema: String,
+                 val name: String,
                  val columns: List<Column> = listOf(),
                  val constraints: List<Constraint> = listOf(),
                  val isView: Boolean = false)
@@ -56,9 +56,9 @@ enum class BasicType {
     }
 }
 
-enum class DatabaseType(val supportInformationSchema: Boolean = true) {
+enum class DatabaseType {
     PostgreSQL,
     MySQL,
-    Oracle(supportInformationSchema = false),
+    Oracle,
     MSSQL;
 }

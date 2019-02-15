@@ -10,8 +10,7 @@ class InformationSchemaProvider(private val type: DatabaseType, dataSource: Data
 
     override fun tables(schema: String, filter: String?): List<Table> {
         // get tables
-        val tables = getTables(schema)
-        TODO()
+        return getTables(schema)
     }
 
     private fun getTables(schema: String): List<Table> {
@@ -26,7 +25,7 @@ class InformationSchemaProvider(private val type: DatabaseType, dataSource: Data
             val constraints = mutableListOf<Constraint>()
             constraints.addAll(getUniqueConstraints(schema, table))
             constraints.addAll(getForeignKeyConstraints(schema, table))
-            Table(schema, table, isView = isView, columns = getColumns(schema, table))
+            Table(schema, table, isView = isView, columns = getColumns(schema, table), constraints = constraints)
         }
     }
 
